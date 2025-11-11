@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Tracker Finansial Harian</title>
     <link rel="stylesheet" href="style.css">
-    
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💸</text></svg>">
-    
-    </head>
+</head>
 <body>
 
     <header>
@@ -94,19 +92,20 @@
                 <p>Saldo Bersih: <span id="netBalance">Rp 0</span></p>
             </div>
             
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tanggal</th>
-                        <th>Jenis</th>
-                        <th>Kategori</th>
-                        <th>Jumlah (Rp)</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="transactionList">
-                    </tbody>
-            </table>
+            <div id="tableWrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Tanggal</th>
+                            <th style="width: 15%;">Jenis</th>
+                            <th style="width: 25%;">Kategori</th>
+                            <th style="width: 20%;">Jumlah (Rp)</th>
+                            <th style="width: 20%;">Aksi</th> </tr>
+                    </thead>
+                    <tbody id="transactionList">
+                        </tbody>
+                </table>
+            </div>
         </section>
     </main>
 

@@ -65,13 +65,15 @@ select {
     gap: 20px;
 }
 
-/* Tombol */
+/* Tombol Dasar */
 .btn {
-    padding: 10px 15px;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s;
+    font-size: 0.8em; 
+    padding: 6px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
 }
 
 .btn.primary {
@@ -92,20 +94,18 @@ select {
     background-color: #5a6268;
 }
 
-/* Tombol Aksi di Tabel */
+/* Gaya Tombol Aksi */
 .btn.detail { 
-    background-color: #007bff;
-    color: white;
-    padding: 5px 8px;
-    font-size: 0.8em;
-    margin-right: 5px;
+    padding: 3px 6px; 
+    font-size: 0.7em; 
+    min-width: 45px; 
+    margin-right: 3px; 
 }
 
 .btn.delete {
-    background-color: #dc3545;
-    color: white;
-    padding: 5px 8px;
-    font-size: 0.8em;
+    padding: 3px 6px; 
+    font-size: 0.7em; 
+    min-width: 45px; 
 }
 
 .button-group {
@@ -116,20 +116,50 @@ select {
 
 /* Tabel Transaksi */
 table {
-    width: 100%;
+    width: 100%; 
     border-collapse: collapse;
     margin-top: 20px;
+    table-layout: fixed; 
 }
 
 th, td {
-    padding: 12px;
+    padding: 5px 2px;
     border: 1px solid #ddd;
     text-align: left;
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    font-size: 0.9em; 
 }
 
 th {
+    padding: 8px 4px; 
     background-color: #f2f2f2;
     font-weight: bold;
+}
+
+/* KUNCI PERBAIKAN: Sel Pesan Kosong */
+td[colspan="5"] {
+    /* Menimpa semua styling sel tabel untuk membuat satu baris penuh */
+    border: 1px solid #ddd; /* Border luar tetap ada */
+    text-align: center;
+    font-weight: bold;
+    font-size: 1em;
+    padding: 12px 0; /* Padding atas/bawah agar konten rata vertikal */
+    
+    /* MENGHILANGKAN GARIS PEMBATAS SEL INTERNAL */
+    border-top: none;
+    border-bottom: none;
+    border-left: 1px solid #ddd; /* Pastikan hanya border kiri/kanan luar yang terlihat */
+    border-right: 1px solid #ddd; 
+}
+
+/* KUNCI: Sel Aksi menggunakan Flexbox Horizontal */
+table td:last-child {
+    display: flex;
+    justify-content: flex-start; 
+    align-items: center;
+    padding: 5px 2px;
+    gap: 2px; 
 }
 
 /* Ringkasan Saldo */
@@ -155,4 +185,36 @@ th {
 #netBalance {
     font-weight: bold;
     color: #007bff;
+}
+
+
+/* MEDIA QUERIES (RESPONSIVE DESIGN KHUSUS HP) */
+
+@media (max-width: 600px) {
+    
+    .balance-summary {
+        flex-direction: column; 
+        align-items: flex-start;
+        gap: 5px; 
+    }
+    
+    .filter-group {
+        flex-direction: column;
+        gap: 0; 
+    }
+    .filter-group select {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* Memastikan scroll horizontal aktif di HP */
+    #tableWrapper {
+        overflow-x: auto; 
+        max-width: 100%;
+        padding-bottom: 10px;
+    }
+    table {
+        min-width: 600px; 
+        margin-top: 0;
+    }
 }

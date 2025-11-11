@@ -1,5 +1,5 @@
-// --- Konstanta dan Inisialisasi ---
-const LS_KEY = 'financialTransactions'; 
+// --- KONSTANTA & INISIALISASI ---
+const GOOGLE_SHEET_API_URL = 'https://sheetdb.io/api/v1/wzjx9cz1ks5h1';
 
 const KATEGORI = {
     "Pendapatan": ["Gaji", "Bonus", "Investasi", "Lain-lain"],
@@ -7,23 +7,15 @@ const KATEGORI = {
 };
 
 const MONTH_NAMES = [
-    { value: 'all', label: 'Semua Bulan' },
-    { value: '01', label: 'Januari' },
-    { value: '02', label: 'Februari' },
-    { value: '03', label: 'Maret' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'Mei' },
-    { value: '06', label: 'Juni' },
-    { value: '07', label: 'Juli' },
-    { value: '08', label: 'Agustus' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'Oktober' },
-    { value: '11', label: 'November' },
+    { value: 'all', label: 'Semua Bulan' }, { value: '01', label: 'Januari' }, { value: '02', label: 'Februari' },
+    { value: '03', label: 'Maret' }, { value: '04', label: 'April' }, { value: '05', label: 'Mei' },
+    { value: '06', label: 'Juni' }, { value: '07', label: 'Juli' }, { value: '08', label: 'Agustus' },
+    { value: '09', label: 'September' }, { value: '10', label: 'Oktober' }, { value: '11', label: 'November' },
     { value: '12', label: 'Desember' }
 ];
 
 let transactions = []; 
-let currentFilteredList = []; // Menyimpan daftar yang difilter saat ini untuk laporan/render
+let currentFilteredList = []; 
 
 // Elemen DOM
 const step1 = document.getElementById('step1');
@@ -35,169 +27,206 @@ const filterYearSelect = document.getElementById('filterYear');
 const filterMonthSelect = document.getElementById('filterMonth');
 const searchBox = document.getElementById('searchBox');
 
-// --- Fungsi Utilitas ---
+// --- FUNGSI UTILITIES ---
 
 function formatRupiah(number) {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0
-    }).format(number);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
 }
 
-function saveTransactions() {
-    localStorage.setItem(LS_KEY, JSON.stringify(transactions));
-}
-
-function loadTransactions() {
-    const stored = localStorage.getItem(LS_KEY);
-    if (stored) {
-        try {
-            transactions = JSON.parse(stored);
-        } catch (e) {
-            console.error("Gagal memuat transaksi dari Local Storage", e);
-            transactions = [];
-        }
-    }
-}
-
-// --- FUNGSI GENERATE PDF ---
-
-window.generatePDFReport = function() {
-    if (currentFilteredList.length === 0) {
-        alert("Tidak ada transaksi dalam periode ini untuk dibuatkan laporan.");
-        return;
-    }
-    
-    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF.prototype.autoTable === 'undefined') {
-        alert("Gagal memuat library PDF (jsPDF atau AutoTable). Pastikan koneksi internet stabil.");
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    const summary = calculateSummaryData(currentFilteredList);
-    const selectedMonthName = MONTH_NAMES.find(m => m.value === filterMonthSelect.value)?.label || filterMonthSelect.value;
-    const selectedYear = filterYearSelect.value;
-    
-    let title = `Laporan Finansial: ${selectedMonthName} ${selectedYear}`;
-    if (selectedMonthName === 'Semua Bulan' || selectedYear === 'all') {
-        title = `Laporan Finansial (Filter Saat Ini)`;
-    }
-    
-    let y = 15; 
-
-    // 1. HEADER
-    doc.setFontSize(16);
-    doc.text("FinTrack Harian", 15, y);
-    y += 8;
-    doc.setFontSize(12);
-    doc.text(title, 15, y);
-    y += 12;
-
-    // 2. RINGKASAN
-    doc.setFontSize(10);
-    doc.text(`Total Pendapatan: ${formatRupiah(summary.totalIncome)}`, 15, y);
-    y += 6;
-    doc.text(`Total Pengeluaran: ${formatRupiah(summary.totalExpense)}`, 15, y);
-    y += 6;
-    doc.setFontSize(12);
-    doc.text(`Saldo Bersih: ${formatRupiah(summary.netBalance)}`, 15, y);
-    y += 15;
-
-    // 3. TABEL TRANSAKSI
-    doc.setFontSize(10);
-    doc.text("Rincian Transaksi:", 15, y);
-    y += 5;
-
-    const tableData = currentFilteredList.map(t => [
-        t.tanggal,
-        t.jenis,
-        t.kategori,
-        formatRupiah(t.jumlah)
-    ]);
-    
-    doc.autoTable({
-        startY: y,
-        head: [['Tanggal', 'Jenis', 'Kategori', 'Jumlah']],
-        body: tableData,
-        
-        didParseCell: function(data) {
-            const transaction = currentFilteredList[data.row.index];
-            
-            // Periksa apakah baris ini adalah Pengeluaran untuk pembeda warna
-            if (transaction && transaction.jenis === 'Pengeluaran') {
-                data.cell.styles.fillColor = [230, 230, 230]; // Abu-abu terang
-            }
-        },
-
-        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-        headStyles: { fillColor: [40, 167, 69] },
-    });
-
-    // 4. UNDUH FILE
-    const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-    doc.save(filename);
-};
-
-// Fungsi pembantu untuk menghitung summary
 function calculateSummaryData(listToRender) {
-    let totalIncome = 0;
-    let totalExpense = 0;
-
+    let totalIncome = 0; let totalExpense = 0;
     listToRender.forEach(t => {
         const amount = parseFloat(t.jumlah) || 0; 
-        if (t.jenis === 'Pendapatan') {
-            totalIncome += amount;
-        } else {
-            totalExpense += amount;
-        }
+        if (t.jenis === 'Pendapatan') { totalIncome += amount; } else { totalExpense += amount; }
     });
+    return { totalIncome: totalIncome, totalExpense: totalExpense, netBalance: totalIncome - totalExpense };
+}
 
-    return {
-        totalIncome: totalIncome,
-        totalExpense: totalExpense,
-        netBalance: totalIncome - totalExpense
+// --- FUNGSI CLOUD (SHEETDB) ---
+
+async function loadTransactionsFromCloud() {
+    try {
+        transactionListBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Memuat data dari Cloud...</td></tr>';
+        
+        const response = await fetch(GOOGLE_SHEET_API_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+            return data.map((t) => ({
+                id: t.Timestamp, 
+                tanggal: t.Tanggal, 
+                jenis: t.Jenis,     
+                kategori: t.Kategori,
+                jumlah: parseFloat(t.Jumlah) || 0, 
+                deskripsi: t.Deskripsi || '' 
+            }));
+        }
+        return [];
+
+    } catch (error) {
+        console.error("Gagal memuat transaksi dari SheetDB:", error);
+        alert("Gagal memuat data dari cloud. Cek koneksi atau konfigurasi SheetDB.");
+        return [];
+    }
+}
+
+async function saveTransactionToCloud(newTransaction) {
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ data: newTransaction })
     };
+
+    try {
+        const response = await fetch(GOOGLE_SHEET_API_URL, options);
+        const result = await response.json(); 
+        
+        if (result.created === 1) {
+            return { success: true };
+        } else {
+             console.error("SheetDB Error:", result);
+             return { success: false, message: "SheetDB menolak data." };
+        }
+    } catch (error) {
+        console.error("Gagal menyimpan transaksi ke SheetDB:", error);
+        return { success: false, message: error.toString() };
+    }
+}
+
+async function deleteTransactionFromCloud(id) {
+    const url = `${GOOGLE_SHEET_API_URL}/Timestamp/${encodeURIComponent(id)}`;
+
+    const options = {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
+    try {
+        const response = await fetch(url, options);
+        
+        if (response.status === 200) {
+            const rawResponse = await response.text(); 
+            
+            if (rawResponse.includes('{"deleted":1}')) {
+                return { success: true };
+            } else {
+                 console.error("SheetDB DELETE GAGAL. Respons:", rawResponse);
+                 return { success: false, message: "Akses DITOLAK: Respon tidak valid. (Cek izin SheetDB)" };
+            }
+        } else if (response.status === 404) {
+             return { success: false, message: "ID transaksi tidak ditemukan di Sheet." };
+        } else {
+             return { success: false, message: `Gagal HTTP: ${response.status} (Izin ditolak?)` };
+        }
+        
+    } catch (error) {
+        console.error("Gagal menghapus transaksi dari SheetDB:", error);
+        return { success: false, message: error.toString() };
+    }
 }
 
 
-// --- FUNGSI FILTER & SEARCH UTAMA ---
+// --- FUNGSI UTAMA (SUBMIT) ---
+financialForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const newTransaction = {
+        Timestamp: new Date().toISOString(), 
+        Tanggal: document.getElementById('date').value,
+        Jenis: document.querySelector('input[name="type"]:checked').value,
+        Kategori: categorySelect.value,
+        Jumlah: parseFloat(document.getElementById('amount').value),
+        Deskripsi: document.getElementById('description').value,
+    };
+    
+    if (!newTransaction.Kategori || !newTransaction.Jumlah || newTransaction.Jumlah <= 0) {
+        alert("Mohon isi Kategori dan Jumlah uang dengan benar.");
+        return;
+    }
+    
+    const submitButton = financialForm.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    submitButton.textContent = 'Menyimpan...';
+    submitButton.disabled = true;
+
+    const result = await saveTransactionToCloud(newTransaction);
+    
+    submitButton.textContent = originalText;
+    submitButton.disabled = false;
+
+
+    if (result.success) {
+        alert("Transaksi berhasil disimpan ke cloud! Data dimuat ulang.");
+        
+        transactions = await loadTransactionsFromCloud(); 
+        
+        filterAndRenderTransactions(); 
+
+        financialForm.reset();
+        goToStep1(); 
+    } else {
+        alert(`Gagal menyimpan: ${result.message || 'Periksa console browser.'}`);
+    }
+});
+
+// FUNGSI BARU: Logika Saat Tombol Hapus Diklik
+window.deleteTransaction = async function(id) {
+    if (!confirm("Apakah Anda yakin ingin menghapus transaksi ini secara permanen dari Cloud?")) {
+        return;
+    }
+    
+    const transactionToDelete = transactions.find(t => t.id === id);
+    if (!transactionToDelete) {
+        alert("ID transaksi tidak ditemukan di daftar.");
+        return;
+    }
+
+    alert("Menghapus data, mohon tunggu...");
+
+    const result = await deleteTransactionFromCloud(id);
+
+    if (result.success) {
+        alert("Transaksi berhasil dihapus dari Cloud!");
+        
+        transactions = await loadTransactionsFromCloud();
+        filterAndRenderTransactions();
+    } else {
+        alert(`Gagal menghapus: ${result.message}. Cek console untuk detail.`);
+    }
+};
+
+
+// --- FUNGSI RENDERING & FILTER ---
 
 function populateYearFilter() {
     const currentYear = new Date().getFullYear();
     const futureYear = currentYear + 50;
-
     filterYearSelect.innerHTML = '';
-    
     let allOption = document.createElement('option');
-    allOption.value = 'all';
-    allOption.textContent = 'Semua Tahun';
-    filterYearSelect.appendChild(allOption);
-
+    allOption.value = 'all'; allOption.textContent = 'Semua Tahun'; filterYearSelect.appendChild(allOption);
     for (let year = currentYear; year <= futureYear; year++) {
         let option = document.createElement('option');
-        option.value = year.toString();
-        option.textContent = year.toString();
-        filterYearSelect.appendChild(option);
+        option.value = year.toString(); option.textContent = year.toString(); filterYearSelect.appendChild(option);
     }
-    
     filterYearSelect.value = currentYear.toString();
 }
 
 function populateMonthFilter() {
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
-    
     filterMonthSelect.innerHTML = '';
-    
     MONTH_NAMES.forEach(month => {
         let option = document.createElement('option');
-        option.value = month.value;
-        option.textContent = month.label;
-        filterMonthSelect.appendChild(option);
+        option.value = month.value; option.textContent = month.label; filterMonthSelect.appendChild(option);
     });
-
     filterMonthSelect.value = currentMonth;
 }
 
@@ -205,122 +234,42 @@ window.filterAndRenderTransactions = function() {
     const searchTerm = searchBox.value.toLowerCase().trim();
     const selectedYear = filterYearSelect.value;
     const selectedMonth = filterMonthSelect.value;
-    
     let filteredList = transactions;
 
-    // LANGKAH 1: Filter Pencarian Teks
     if (searchTerm) {
-        filteredList = filteredList.filter(t => 
-            (t.deskripsi && t.deskripsi.toLowerCase().includes(searchTerm)) || 
-            (t.kategori && t.kategori.toLowerCase().includes(searchTerm))
-        );
+        filteredList = filteredList.filter(t => (t.deskripsi && t.deskripsi.toLowerCase().includes(searchTerm)) || (t.kategori && t.kategori.toLowerCase().includes(searchTerm)));
     }
-
-    // LANGKAH 2 & 3: Filter Periode
     if (selectedYear !== 'all') {
         filteredList = filteredList.filter(t => t.tanggal && t.tanggal.startsWith(selectedYear));
     }
-    
     if (selectedMonth !== 'all') {
         if (selectedYear !== 'all') {
-            const monthPrefix = `${selectedYear}-${selectedMonth}`; 
-            filteredList = filteredList.filter(t => t.tanggal && t.tanggal.startsWith(monthPrefix));
+            const monthPrefix = `${selectedYear}-${selectedMonth}`; filteredList = filteredList.filter(t => t.tanggal && t.tanggal.startsWith(monthPrefix));
         } else {
-            const monthSegment = `-${selectedMonth}-`; 
-            filteredList = filteredList.filter(t => t.tanggal && t.tanggal.includes(monthSegment));
+            const monthSegment = `-${selectedMonth}-`; filteredList = filteredList.filter(t => t.tanggal && t.tanggal.includes(monthSegment));
         }
     }
-    
     currentFilteredList = filteredList;
-
     renderTransactions(currentFilteredList);
-}
-
-
-// --- Fungsi Navigasi Formulir & Rincian ---
-
-window.goToStep2 = function() {
-    const selectedType = document.querySelector('input[name="type"]:checked');
-    const dateInput = document.getElementById('date').value;
-
-    if (!selectedType || !dateInput) {
-        alert("Mohon isi Tanggal dan Jenis Transaksi.");
-        return;
-    }
-
-    const type = selectedType.value;
-    
-    categorySelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-    KATEGORI[type].forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat;
-        option.textContent = cat;
-        categorySelect.appendChild(option);
-    });
-
-    step1.style.display = 'none';
-    step2.style.display = 'block';
-}
-
-window.goToStep1 = function() {
-    step1.style.display = 'block';
-    step2.style.display = 'none';
-}
-
-window.showDetails = function(id) {
-    const transaction = transactions.find(t => t.id === id);
-    if (!transaction) return;
-
-    let detailsText = `
-        RINCIAN TRANSAKSI
-        -------------------------
-        Tanggal: ${transaction.tanggal}
-        Jenis: ${transaction.jenis}
-        Kategori: ${transaction.kategori}
-        Jumlah: ${formatRupiah(transaction.jumlah)}
-        Deskripsi: ${transaction.deskripsi || '(Tidak ada deskripsi)'}
-    `;
-
-    alert(detailsText);
-    
-    if (transaction.imageURL) {
-        if (transaction.imageURL.startsWith('http')) {
-            window.open(transaction.imageURL, '_blank');
-        } else {
-            alert("URL foto tidak valid.");
-        }
-    }
-}
-
-// --- Fungsi Utama (Render, Hapus) ---
-
-function calculateAndRenderSummary(listToRender) {
-    const summary = calculateSummaryData(listToRender);
-
-    document.getElementById('totalIncome').textContent = formatRupiah(summary.totalIncome);
-    document.getElementById('totalExpense').textContent = formatRupiah(summary.totalExpense);
-    
-    const netBalanceEl = document.getElementById('netBalance');
-    netBalanceEl.textContent = formatRupiah(summary.netBalance);
-    netBalanceEl.style.color = summary.netBalance >= 0 ? '#007bff' : '#dc3545';
 }
 
 function renderTransactions(listToRender) {
     transactionListBody.innerHTML = ''; 
-
     listToRender.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal)); 
-
+    
     if (listToRender.length === 0) {
         const row = transactionListBody.insertRow();
         const cell = row.insertCell();
-        cell.colSpan = 5;
-        cell.textContent = "Tidak ada transaksi ditemukan untuk kriteria ini.";
-        cell.style.textAlign = 'center';
+        // PERBAIKAN: Mengatur colspan ke 5
+        cell.colSpan = 5; 
+        cell.textContent = "Tidak ada transaksi ditemukan untuk kriteria ini."; 
+        cell.style.textAlign = 'center'; 
+        cell.style.padding = '12px 0'; // Style yang disinkronkan dengan CSS
     } else {
-        listToRender.forEach(t => {
+        listToRender.forEach((t) => {
             const row = transactionListBody.insertRow();
             const typeClass = t.jenis === 'Pendapatan' ? 'income' : 'expense';
-    
+            
             row.insertCell().textContent = t.tanggal;
             row.insertCell().innerHTML = `<span class="${typeClass}">${t.jenis}</span>`;
             row.insertCell().textContent = t.kategori;
@@ -328,84 +277,55 @@ function renderTransactions(listToRender) {
             
             const actionCell = row.insertCell();
             
+            // 1. Tombol RINCIAN 
             const detailBtn = document.createElement('button');
-            detailBtn.textContent = 'Rincian';
+            detailBtn.textContent = 'Rincian'; 
             detailBtn.className = 'btn detail';
-            detailBtn.onclick = () => showDetails(t.id);
+            detailBtn.onclick = () => showDetails(t.id); 
+            detailBtn.style.cssText = 'background-color: #007bff; color: white;';
             actionCell.appendChild(detailBtn);
             
+            // 2. Tombol HAPUS 
             const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Hapus';
+            deleteBtn.textContent = 'Hapus'; 
             deleteBtn.className = 'btn delete';
             deleteBtn.onclick = () => deleteTransaction(t.id);
+            deleteBtn.style.cssText = 'background-color: #dc3545; color: white;';
             actionCell.appendChild(deleteBtn);
         });
     }
-
-    calculateAndRenderSummary(listToRender);
+    calculateAndRenderSummary(listToRender); 
 }
 
-window.deleteTransaction = function(id) {
-    if (confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
-        transactions = transactions.filter(t => t.id !== id);
-        saveTransactions();
-        filterAndRenderTransactions(); 
-    }
+// FUNGSI LAINNYA
+window.goToStep2 = function() {
+    const selectedType = document.querySelector('input[name="type"]:checked');
+    const dateInput = document.getElementById('date').value;
+    if (!selectedType || !dateInput) { alert("Mohon isi Tanggal dan Jenis Transaksi."); return; }
+    const type = selectedType.value;
+    categorySelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    KATEGORI[type].forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat; option.textContent = cat; categorySelect.appendChild(option);
+    });
+    step1.style.display = 'none'; step2.style.display = 'block';
 }
 
-// --- Event Listener Submit Formulir ---
-financialForm.addEventListener('submit', function(e) {
-    e.preventDefault();
+window.goToStep1 = function() { step1.style.display = 'block'; step2.style.display = 'none'; }
 
-    const date = document.getElementById('date').value;
-    const type = document.querySelector('input[name="type"]:checked').value;
+window.showDetails = function(id) {
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+    let detailsText = `RINCIAN TRANSAKSI\n-------------------------\nTanggal: ${transaction.tanggal}\nJenis: ${transaction.jenis}\nKategori: ${transaction.kategori}\nJumlah: ${formatRupiah(transaction.jumlah)}\nDeskripsi: ${transaction.deskripsi || '(Tidak ada deskripsi)'}`;
+    alert(detailsText);
+}
 
-    const category = categorySelect.value;
-    const amount = parseFloat(document.getElementById('amount').value);
-    const description = document.getElementById('description').value;
-    const imageURL = document.getElementById('imageURL').value;
-    
-    if (!category || !amount || amount <= 0) {
-        alert("Mohon isi Kategori dan Jumlah uang dengan benar.");
-        return;
-    }
-
-    const newTransaction = {
-        id: Date.now(), 
-        tanggal: date,
-        jenis: type,
-        jumlah: amount,
-        kategori: category,
-        deskripsi: description,
-        imageURL: imageURL
-    };
-
-    transactions.push(newTransaction);
-    saveTransactions();
-    
+// --- INISIALISASI APLIKASI saat dimuat ---
+document.addEventListener('DOMContentLoaded', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+    transactions = await loadTransactionsFromCloud(); 
+    populateYearFilter();
+    populateMonthFilter();
     filterAndRenderTransactions(); 
-    
-    financialForm.reset();
-    goToStep1(); 
-});
-
-// --- Inisialisasi Aplikasi saat dimuat ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Tambahkan delay kecil untuk memastikan DOM sudah benar-benar selesai di-load (opsional, tapi membantu)
-    setTimeout(() => {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('date').value = today;
-        
-        loadTransactions();
-        
-        populateYearFilter();
-        populateMonthFilter();
-        
-        // Cek kembali apakah elemen filter terisi
-        if (filterYearSelect.options.length <= 1 || filterMonthSelect.options.length <= 1) {
-             console.error("Filter Tahun/Bulan tidak terisi. Cek ulang ID elemen di HTML.");
-        }
-
-        filterAndRenderTransactions(); 
-    }, 50); // Delay 50ms
 });
