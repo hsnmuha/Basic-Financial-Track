@@ -6,9 +6,9 @@
     <title>Web Tracker Finansial Harian</title>
     <link rel="stylesheet" href="style.css">
     
-    <script src="jspdf.js"></script>
-    <script src="jspdf.autotable.js"></script>
-</head>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💸</text></svg>">
+    
+    </head>
 <body>
 
     <header>
@@ -59,11 +59,6 @@
                         <label for="description">Deskripsi (Opsional):</label>
                         <input type="text" id="description" maxlength="50">
                     </div>
-
-                    <div class="form-group">
-                        <label for="imageURL">URL Foto Struk/Bukti (Opsional):</label>
-                        <input type="url" id="imageURL" placeholder="http://contoh.com/struk.jpg">
-                    </div>
                     
                     <div class="button-group">
                         <button type="button" class="btn secondary" onclick="goToStep1()">&larr; Kembali</button>
@@ -93,10 +88,6 @@
                 </div>
             </div>
             
-            <button class="btn secondary" style="width: 100%; margin-bottom: 15px;" onclick="generatePDFReport()">
-                ⬇️ Unduh Laporan Periode Ini (PDF)
-            </button>
-
             <div class="balance-summary">
                 <p>Total Pendapatan: <span id="totalIncome" class="income">Rp 0</span></p>
                 <p>Total Pengeluaran: <span id="totalExpense" class="expense">Rp 0</span></p>
