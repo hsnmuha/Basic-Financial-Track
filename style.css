@@ -1,0 +1,158 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 20px 0;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+main {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+section {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+/* Formulir dan Input */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="date"],
+input[type="number"],
+input[type="text"],
+input[type="url"],
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* Penataan Filter Grup */
+.filter-group {
+    display: flex;
+    gap: 10px;
+}
+.filter-group select {
+    flex-grow: 1; 
+}
+
+.radio-group .radio-options {
+    display: flex;
+    gap: 20px;
+}
+
+/* Tombol */
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn.primary {
+    background-color: #28a745; 
+    color: white;
+}
+
+.btn.primary:hover {
+    background-color: #1e7e34;
+}
+
+.btn.secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn.secondary:hover {
+    background-color: #5a6268;
+}
+
+/* Tombol Aksi di Tabel */
+.btn.detail { 
+    background-color: #007bff;
+    color: white;
+    padding: 5px 8px;
+    font-size: 0.8em;
+    margin-right: 5px;
+}
+
+.btn.delete {
+    background-color: #dc3545;
+    color: white;
+    padding: 5px 8px;
+    font-size: 0.8em;
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+/* Tabel Transaksi */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+/* Ringkasan Saldo */
+.balance-summary {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    border: 1px dashed #007bff;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.income {
+    color: #28a745; 
+    font-weight: bold;
+}
+
+.expense {
+    color: #dc3545; 
+    font-weight: bold;
+}
+
+#netBalance {
+    font-weight: bold;
+    color: #007bff;
+}

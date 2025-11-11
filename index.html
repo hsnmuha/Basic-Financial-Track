@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Tracker Finansial Harian</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="jspdf.js"></script>
+    <script src="jspdf.autotable.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>💸 FinTrack Harian</h1>
+    </header>
+
+    <main>
+        <section class="form-container">
+            <h2>Tambah Transaksi Baru</h2>
+            <form id="financialForm">
+                
+                <div id="step1" class="step">
+                    <h3>Langkah 1: Jenis Transaksi</h3>
+                    <div class="form-group">
+                        <label for="date">Tanggal:</label>
+                        <input type="date" id="date" required value="">
+                    </div>
+                    
+                    <div class="form-group radio-group">
+                        <label>Jenis:</label>
+                        <div class="radio-options">
+                            <input type="radio" id="income" name="type" value="Pendapatan" required>
+                            <label for="income">Pendapatan</label>
+                            <input type="radio" id="expense" name="type" value="Pengeluaran">
+                            <label for="expense">Pengeluaran</label>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn primary" onclick="goToStep2()">Lanjut &rarr;</button>
+                </div>
+
+                <div id="step2" class="step" style="display: none;">
+                    <h3>Langkah 2: Detail Transaksi</h3>
+                    
+                    <div class="form-group">
+                        <label for="category">Kategori:</label>
+                        <select id="category" required>
+                            <option value="">-- Pilih Kategori --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="amount">Jumlah (Rp):</label>
+                        <input type="number" id="amount" required min="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Deskripsi (Opsional):</label>
+                        <input type="text" id="description" maxlength="50">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imageURL">URL Foto Struk/Bukti (Opsional):</label>
+                        <input type="url" id="imageURL" placeholder="http://contoh.com/struk.jpg">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" class="btn secondary" onclick="goToStep1()">&larr; Kembali</button>
+                        <button type="submit" class="btn primary">Simpan Transaksi</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <hr>
+
+        <section class="list-container">
+            <h2>Daftar Transaksi</h2>
+            
+            <div class="filter-controls form-group">
+                <label for="searchBox">Cari Transaksi (Deskripsi/Kategori):</label>
+                <input type="text" id="searchBox" oninput="filterAndRenderTransactions()" placeholder="Ketik kata kunci...">
+            </div>
+
+            <div class="filter-controls form-group">
+                <label>Filter Periode:</label>
+                <div class="filter-group">
+                    <select id="filterYear" onchange="filterAndRenderTransactions()">
+                        </select>
+                    <select id="filterMonth" onchange="filterAndRenderTransactions()">
+                        </select>
+                </div>
+            </div>
+            
+            <button class="btn secondary" style="width: 100%; margin-bottom: 15px;" onclick="generatePDFReport()">
+                ⬇️ Unduh Laporan Periode Ini (PDF)
+            </button>
+
+            <div class="balance-summary">
+                <p>Total Pendapatan: <span id="totalIncome" class="income">Rp 0</span></p>
+                <p>Total Pengeluaran: <span id="totalExpense" class="expense">Rp 0</span></p>
+                <p>Saldo Bersih: <span id="netBalance">Rp 0</span></p>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Jenis</th>
+                        <th>Kategori</th>
+                        <th>Jumlah (Rp)</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionList">
+                    </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
