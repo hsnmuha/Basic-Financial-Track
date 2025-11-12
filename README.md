@@ -102,4 +102,4 @@ Kamu bebas memodifikasi, menyalin, dan mengembangkan proyek ini untuk keperluan 
 
 ***
 
-_Dibuat dengan ❤️ oleh [Nama/Username GitHub Anda]_
+_Dibuat dengan ❤️ oleh hsnmuha_
