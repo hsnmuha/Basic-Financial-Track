@@ -1,5 +1,7 @@
 // --- KONSTANTA & INISIALISASI ---
-const GOOGLE_SHEET_API_URL = 'https://sheetdb.io/api/v1/wzjx9cz1ks5h1';
+const GOOGLE_SHEET_API_URL = 'https://api.sheetson.com/v2/sheets/Sheet1';
+const SHEETSON_SPREADSHEET_ID = '18Tcu1doi7L00PbaY-AR5S2DqoPNh7d_1ULaOgRztqF4';
+const SHEETSON_API_KEY = 'Zj95gut0S_LLdD-kxZklxk_edTvBGpQ5qT2UzAe8BGbgAPxjq7jYvtHDzZg';
 const IMGBB_API = 'https://api.imgbb.com/1/upload?key=6f20b7c40f8089cbab2e1e64fa40eb57';
 
 const KATEGORI = {
@@ -63,16 +65,21 @@ async function loadTransactionsFromCloud() {
     try {
         transactionListBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Memuat data dari Cloud...</td></tr>';
         
-        const response = await fetch(GOOGLE_SHEET_API_URL);
+        const response = await fetch(GOOGLE_SHEET_API_URL, {
+            headers: {
+                'Authorization': `Bearer ${SHEETSON_API_KEY}`,
+                'X-Spreadsheet-Id': SHEETSON_SPREADSHEET_ID
+            }
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        if (Array.isArray(data)) {
-            return data.map((t) => ({
+        const rows = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
+        if (Array.isArray(rows)) {
+            return rows.map((t) => ({
                 id: t.Timestamp,
                 tanggal: t.Tanggal,
                 jenis: t.Jenis,
@@ -85,9 +92,8 @@ async function loadTransactionsFromCloud() {
         return [];
 
     } catch (error) {
-        console.error("Gagal memuat transaksi dari SheetDB:", error);
-        // KUNCI PERBAIKAN: SweetAlert untuk notifikasi gagal
-        Swal.fire('Gagal Memuat!', 'Terjadi masalah saat memuat data dari cloud. Cek koneksi atau konfigurasi SheetDB Anda.', 'error');
+        console.error("Gagal memuat transaksi dari Sheetson:", error);
+        Swal.fire('Gagal Memuat!', 'Terjadi masalah saat memuat data dari cloud. Cek koneksi atau konfigurasi Sheetson Anda.', 'error');
         return [];
     }
 }
@@ -96,62 +102,79 @@ async function saveTransactionToCloud(newTransaction) {
     const options = {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SHEETSON_API_KEY}`,
+            'X-Spreadsheet-Id': SHEETSON_SPREADSHEET_ID
         },
-        body: JSON.stringify({ data: [newTransaction] })
+        body: JSON.stringify(newTransaction)
     };
 
     try {
         const response = await fetch(GOOGLE_SHEET_API_URL, options);
         if (!response.ok) throw new Error(response.statusText);
-        const result = await response.json(); 
-        
-        if (result.created === 1) {
-            return { success: true };
-        } else {
-             console.error("SheetDB Error:", result);
-             return { success: false, message: "SheetDB menolak data." };
-        }
+        return { success: true };
     } catch (error) {
-        console.error("Gagal menyimpan transaksi ke SheetDB:", error);
+        console.error("Gagal menyimpan transaksi ke Sheetson:", error);
         return { success: false, message: error.toString() };
     }
 }
 
+async function getRowIndexByTimestamp(id) {
+    try {
+        const res = await fetch(GOOGLE_SHEET_API_URL, {
+            headers: {
+                'Authorization': `Bearer ${SHEETSON_API_KEY}`,
+                'X-Spreadsheet-Id': SHEETSON_SPREADSHEET_ID
+            }
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        const rows = Array.isArray(json) ? json : (Array.isArray(json.results) ? json.results : []);
+        const match = rows.find(r => r.Timestamp === id);
+        if (!match) return null;
+        return match.rowIndex || match._rowIndex || match.rowNumber || null;
+    } catch {
+        return null;
+    }
+}
+
 async function updateTransactionImageInCloud(id, imageUrl) {
-    const url = `${GOOGLE_SHEET_API_URL}/Timestamp/${encodeURIComponent(id)}`;
+    const rowIndex = await getRowIndexByTimestamp(id);
+    if (!rowIndex) return { success: false, message: 'Row tidak ditemukan' };
+    const url = `${GOOGLE_SHEET_API_URL}/${rowIndex}`;
     const options = {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { Gambar: imageUrl } })
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SHEETSON_API_KEY}`,
+            'X-Spreadsheet-Id': SHEETSON_SPREADSHEET_ID
+        },
+        body: JSON.stringify({ Gambar: imageUrl })
     };
     try {
         const response = await fetch(url, options);
         if (!response.ok) return { success: false, message: response.statusText };
-        const result = await response.json();
-        if (result.updated === 1 || result.created === 1) {
-            return { success: true };
-        }
-        return { success: false, message: 'SheetDB menolak update.' };
+        return { success: true };
     } catch (e) {
         return { success: false, message: e.toString() };
     }
 }
 
 async function deleteTransactionFromCloud(id) {
-    const url = `${GOOGLE_SHEET_API_URL}/Timestamp/${encodeURIComponent(id)}`;
-
-    const options = { method: 'DELETE', headers: { 'Content-Type': 'application/json' } };
-
+    const rowIndex = await getRowIndexByTimestamp(id);
+    if (!rowIndex) return { success: false, message: 'Row tidak ditemukan' };
+    const url = `${GOOGLE_SHEET_API_URL}/${rowIndex}`;
+    const options = {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${SHEETSON_API_KEY}`,
+            'X-Spreadsheet-Id': SHEETSON_SPREADSHEET_ID
+        }
+    };
     try {
         const response = await fetch(url, options);
-        if (response.status === 200) {
-            const rawResponse = await response.text(); 
-            if (rawResponse.includes('{"deleted":1}')) { return { success: true }; } 
-            else { console.error("SheetDB DELETE GAGAL. Respons:", rawResponse); return { success: false, message: "Akses DITOLAK: Respon tidak valid." }; }
-        } else if (response.status === 404) { return { success: false, message: "ID transaksi tidak ditemukan di Sheet." }; } 
-        else { return { success: false, message: `Gagal HTTP: ${response.status}. Cek log konsol.` }; }
-        
+        if (!response.ok) return { success: false, message: `Gagal HTTP: ${response.status}` };
+        return { success: true };
     } catch (error) { return { success: false, message: error.toString() }; }
 }
 
