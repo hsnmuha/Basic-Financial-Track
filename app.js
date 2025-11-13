@@ -1,5 +1,6 @@
 // --- KONSTANTA & INISIALISASI ---
-const GOOGLE_SHEET_API_URL = 'https://sheetdb.io/api/v1/wzjx9cz1ks5h1';
+const GOOGLE_SHEET_API_URL = 'https://sheetdb.io/api/v1/n1pjbf97rne9a';
+const IMGBB_API = 'https://api.imgbb.com/1/upload?key=6f20b7c40f8089cbab2e1e64fa40eb57';
 
 const KATEGORI = {
     "Pendapatan": ["Gaji", "Bonus", "Investasi", "Lain-lain"],
@@ -27,6 +28,7 @@ const filterYearSelect = document.getElementById('filterYear');
 const filterMonthSelect = document.getElementById('filterMonth');
 const searchBox = document.getElementById('searchBox');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const receiptInput = document.getElementById('receipt');
 
 // --- FUNGSI UTILITIES ---
 
@@ -71,12 +73,13 @@ async function loadTransactionsFromCloud() {
         
         if (Array.isArray(data)) {
             return data.map((t) => ({
-                id: t.Timestamp, 
-                tanggal: t.Tanggal, 
-                jenis: t.Jenis,     
+                id: t.Timestamp,
+                tanggal: t.Tanggal,
+                jenis: t.Jenis,
                 kategori: t.Kategori,
-                jumlah: parseFloat(String(t.Jumlah).replace(/[^0-9.]/g, '')) || 0, 
-                deskripsi: t.Deskripsi || '' 
+                jumlah: parseFloat(String(t.Jumlah).replace(/[^0-9.]/g, '')) || 0,
+                deskripsi: t.Deskripsi || '',
+                gambar: t.Gambar || ''
             })).filter(t => t.id);
         }
         return [];
@@ -115,6 +118,26 @@ async function saveTransactionToCloud(newTransaction) {
     }
 }
 
+async function updateTransactionImageInCloud(id, imageUrl) {
+    const url = `${GOOGLE_SHEET_API_URL}/Timestamp/${encodeURIComponent(id)}`;
+    const options = {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { Gambar: imageUrl } })
+    };
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) return { success: false, message: response.statusText };
+        const result = await response.json();
+        if (result.updated === 1 || result.created === 1) {
+            return { success: true };
+        }
+        return { success: false, message: 'SheetDB menolak update.' };
+    } catch (e) {
+        return { success: false, message: e.toString() };
+    }
+}
+
 async function deleteTransactionFromCloud(id) {
     const url = `${GOOGLE_SHEET_API_URL}/Timestamp/${encodeURIComponent(id)}`;
 
@@ -148,13 +171,32 @@ financialForm.addEventListener('submit', async function(e) {
         return;
     }
 
+    let imageUrl = '';
+    if (receiptInput && receiptInput.files && receiptInput.files[0]) {
+        const editedBase64 = await openImageEditor(receiptInput.files[0]);
+        if (editedBase64) {
+            const uploadRes = await uploadImageToImgbb(editedBase64);
+            if (uploadRes.success) { imageUrl = uploadRes.url; } else {
+                Swal.fire('Gagal Upload', uploadRes.message || 'Tidak dapat mengunggah struk.', 'error');
+                return;
+            }
+        } else {
+            const uploadRes = await handleImageUpload(receiptInput.files[0]);
+            if (uploadRes.success) { imageUrl = uploadRes.url; } else {
+                Swal.fire('Gagal Upload', uploadRes.message || 'Tidak dapat mengunggah struk.', 'error');
+                return;
+            }
+        }
+    }
+
     const newTransaction = {
         Timestamp: new Date().toISOString(), 
         Tanggal: date,
         Jenis: type,
         Kategori: category,
         Jumlah: amount,
-        Deskripsi: description || ''
+        Deskripsi: description || '',
+        Gambar: imageUrl || ''
     };
     
     const submitButton = financialForm.querySelector('button[type="submit"]');
@@ -318,6 +360,8 @@ window.goToStep1 = function() { step1.style.display = 'block'; step2.style.displ
 window.showDetails = function(id) {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
+    let imgSection = transaction.gambar ? `<div style="margin-top:10px"><img src="${transaction.gambar}" alt="Struk" style="max-width:100%;height:auto;border:1px solid #ddd;border-radius:6px"/></div>` : `<div style="margin-top:10px;color:#666">Belum ada foto struk.</div>`;
+    let actionButtons = `<div style="margin-top:12px;text-align:center"><button id="addPhotoBtn" class="btn primary">Tambah Foto</button>${transaction.gambar ? ' <button id="deletePhotoBtn" class="btn delete">Hapus Foto</button>' : ''}</div>`;
     let detailsText = `
         <div style="text-align: left;">
             <strong>Tanggal:</strong> ${transaction.tanggal}<br>
@@ -326,12 +370,79 @@ window.showDetails = function(id) {
             <strong>Jumlah:</strong> ${formatRupiah(transaction.jumlah)}<br>
             <strong>Deskripsi:</strong> ${transaction.deskripsi || '(Tidak ada)'}
         </div>
+        ${imgSection}
+        ${actionButtons}
     `;
     Swal.fire({
         title: 'Rincian Transaksi',
         html: detailsText,
         icon: 'info',
-        confirmButtonText: 'Tutup'
+        confirmButtonText: 'Tutup',
+        didOpen: () => {
+            const addBtn = document.getElementById('addPhotoBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', async () => {
+                    const { value: file } = await Swal.fire({
+                        title: 'Pilih foto struk',
+                        input: 'file',
+                        inputAttributes: { accept: 'image/*' },
+                        confirmButtonText: 'Unggah',
+                        showCancelButton: true
+                    });
+                    if (file) {
+                        Swal.showLoading();
+                        const editedBase64 = await openImageEditor(file);
+                        Swal.close();
+                        let finalUrl = '';
+                        if (editedBase64) {
+                            const upRes = await uploadImageToImgbb(editedBase64);
+                            if (upRes.success) finalUrl = upRes.url; else {
+                                Swal.fire('Gagal Upload', upRes.message || 'Tidak dapat mengunggah struk.', 'error');
+                                return;
+                            }
+                        } else {
+                            const uploadRes = await handleImageUpload(file);
+                            if (uploadRes.success) finalUrl = uploadRes.url; else {
+                                Swal.fire('Gagal Upload', uploadRes.message || 'Tidak dapat mengunggah struk.', 'error');
+                                return;
+                            }
+                        }
+                        if (finalUrl) {
+                            const upd = await updateTransactionImageInCloud(transaction.id, finalUrl);
+                            if (upd.success) {
+                                transactions = await loadTransactionsFromCloud();
+                                filterAndRenderTransactions();
+                                Swal.fire('Berhasil', 'Foto struk berhasil ditambahkan.', 'success');
+                            } else {
+                                Swal.fire('Gagal', upd.message || 'Tidak dapat menyimpan URL gambar.', 'error');
+                            }
+                        }
+                    }
+                });
+            }
+            const delBtn = document.getElementById('deletePhotoBtn');
+            if (delBtn) {
+                delBtn.addEventListener('click', async () => {
+                    const confirmResult = await Swal.fire({
+                        title: 'Hapus Foto?',
+                        text: 'Foto struk akan dihapus dari transaksi ini.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Hapus'
+                    });
+                    if (confirmResult.isConfirmed) {
+                        const upd = await updateTransactionImageInCloud(transaction.id, '');
+                        if (upd.success) {
+                            transactions = await loadTransactionsFromCloud();
+                            filterAndRenderTransactions();
+                            Swal.fire('Terhapus', 'Foto struk berhasil dihapus.', 'success');
+                        } else {
+                            Swal.fire('Gagal', upd.message || 'Tidak dapat menghapus foto.', 'error');
+                        }
+                    }
+                });
+            }
+        }
     });
 }
 
@@ -454,5 +565,124 @@ async function downloadPdf() {
     } catch (e) {
         console.error('Gagal membuat PDF:', e);
         Swal.fire('Gagal', 'Terjadi kesalahan saat membuat PDF. Lihat konsol untuk detail.', 'error');
+    }
+}
+
+function compressImage(file, maxWidth = 1200, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                const scale = Math.min(1, maxWidth / img.width);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                const base64 = dataUrl.split(',')[1];
+                resolve(base64);
+            };
+            img.onerror = reject;
+            img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function uploadImageToImgbb(base64) {
+    const fd = new FormData();
+    fd.append('image', base64);
+    try {
+        const res = await fetch(IMGBB_API, { method: 'POST', body: fd });
+        if (!res.ok) return { success: false, message: res.statusText };
+        const json = await res.json();
+        const url = json && json.data && json.data.url ? json.data.url : '';
+        if (!url) return { success: false, message: 'URL kosong dari IMGBB' };
+        return { success: true, url };
+    } catch (e) {
+        return { success: false, message: e.toString() };
+    }
+}
+
+async function handleImageUpload(file) {
+    try {
+        const base64 = await compressImage(file);
+        const up = await uploadImageToImgbb(base64);
+        return up;
+    } catch (e) {
+        return { success: false, message: e.toString() };
+    }
+}
+
+async function openImageEditor(file, maxWidth = 1200, quality = 0.7) {
+    try {
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        const img = await new Promise((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = dataUrl;
+        });
+        let angle = 0;
+        const result = await Swal.fire({
+            title: 'Edit Foto',
+            html: `
+                <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+                    <canvas id="imgEditorCanvas" style="max-width:100%;border:1px solid #ddd;border-radius:6px"></canvas>
+                    <div>
+                        <button id="rotLeft" class="btn secondary">⟲</button>
+                        <button id="rotRight" class="btn secondary">⟳</button>
+                        <button id="rotReset" class="btn">Reset</button>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Simpan',
+            didOpen: () => {
+                const canvas = document.getElementById('imgEditorCanvas');
+                const ctx = canvas.getContext('2d');
+                function render() {
+                    const rotated = Math.abs(angle % 180) === 90;
+                    const srcW = img.width;
+                    const srcH = img.height;
+                    const baseW = rotated ? srcH : srcW;
+                    const scale = Math.min(1, maxWidth / baseW);
+                    canvas.width = Math.round((rotated ? srcH : srcW) * scale);
+                    canvas.height = Math.round((rotated ? srcW : srcH) * scale);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.save();
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.rotate((angle * Math.PI) / 180);
+                    ctx.drawImage(
+                        img,
+                        -Math.round((srcW * scale) / 2),
+                        -Math.round((srcH * scale) / 2),
+                        Math.round(srcW * scale),
+                        Math.round(srcH * scale)
+                    );
+                    ctx.restore();
+                }
+                render();
+                document.getElementById('rotLeft').addEventListener('click', () => { angle -= 90; render(); });
+                document.getElementById('rotRight').addEventListener('click', () => { angle += 90; render(); });
+                document.getElementById('rotReset').addEventListener('click', () => { angle = 0; render(); });
+            },
+            preConfirm: () => {
+                const canvas = document.getElementById('imgEditorCanvas');
+                const out = canvas.toDataURL('image/jpeg', quality);
+                return out.split(',')[1];
+            }
+        });
+        return result.isConfirmed ? result.value : null;
+    } catch (e) {
+        return null;
     }
 }
