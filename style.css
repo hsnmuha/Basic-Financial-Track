@@ -121,10 +121,10 @@ select {
 
 /* Tabel Transaksi */
 table {
-    width: 100%; 
+    width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
-    table-layout: fixed; 
+    table-layout: auto; /* Ubah dari fixed ke auto agar kolom menyesuaikan konten */
 }
 
 th, td {
@@ -222,13 +222,51 @@ table td:last-child {
         padding-bottom: 10px;
     }
     table {
-        min-width: 950px;
+        width: 100%;
         margin-top: 0;
+        table-layout: auto; /* Kolom menyesuaikan konten di mobile */
+        min-width: 500px; /* Lebar minimum tabel agar tidak terlalu sempit */
+    }
+
+    /* Kurangi padding untuk menghemat ruang */
+    th, td {
+        padding: 6px 4px;
+        font-size: 0.9em; /* Kembali ke ukuran font semula */
+    }
+
+    /* Kolom Tanggal lebih sempit */
+    th:first-child, td:first-child {
+        min-width: 70px;
+        max-width: 80px;
+    }
+
+    /* Kolom Jenis */
+    th:nth-child(2), td:nth-child(2) {
+        min-width: 60px;
+        max-width: 70px;
+    }
+
+    /* Kolom Kategori */
+    th:nth-child(3), td:nth-child(3) {
+        min-width: 80px;
+        max-width: 120px;
+    }
+
+    /* Kolom Jumlah */
+    th:nth-child(4), td:nth-child(4) {
+        min-width: 80px;
+        max-width: 100px;
     }
 
     /* Pastikan kolom Aksi tidak terpotong */
     table td:last-child {
-        min-width: 180px; /* Lebar minimum untuk 3 tombol */
+        min-width: 160px; /* Kurangi dari 180px untuk menghemat ruang */
         flex-shrink: 0;
+    }
+
+    /* Tombol lebih kecil di mobile */
+    .btn {
+        font-size: 0.8em; /* Kembali ke ukuran font semula untuk tombol */
+        padding: 4px 6px;
     }
 }
