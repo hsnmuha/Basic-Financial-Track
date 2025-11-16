@@ -251,8 +251,12 @@ function renderTransactions(listToRender) {
         listToRender.forEach((t) => {
             const row = transactionListBody.insertRow();
             const typeClass = t.jenis === 'Pendapatan' ? 'income' : 'expense';
-            
-            row.insertCell().textContent = t.tanggal;
+
+            // Format tanggal ke DD/MM/YYYY
+            const dateParts = t.tanggal.split('-');
+            const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : t.tanggal;
+
+            row.insertCell().textContent = formattedDate;
             row.insertCell().innerHTML = `<span class="${typeClass}">${t.jenis}</span>`;
             row.insertCell().textContent = t.kategori;
             row.insertCell().textContent = formatRupiah(t.jumlah);
