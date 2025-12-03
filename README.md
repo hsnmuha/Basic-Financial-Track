@@ -1,105 +1,78 @@
-# 💰 Personal Finance Tracker (Pelacak Keuangan Pribadi)
+# Catat.in - Aplikasi Pencatat Keuangan Pribadi
 
-> Aplikasi web sederhana dan profesional untuk mencatat pemasukan dan pengeluaran pribadi.
+**Catat.in** adalah aplikasi web sederhana namun *powerful* untuk mencatat dan memantau keuangan pribadi Anda. Dengan antarmuka yang bersih dan mudah digunakan, aplikasi ini membantu Anda melacak pendapatan dan pengeluaran, serta menyimpan bukti transaksi secara digital.
 
----
+![Catat.in Header](Header.png)
 
-## ✨ Tentang Proyek
+## 📋 Fitur Utama
 
-**Personal Finance Tracker** adalah solusi berbasis web yang dirancang untuk membantu Anda mengelola dan melacak keuangan pribadi secara efektif. Proyek ini dibangun dengan fokus pada antarmuka yang **simpel, bersih, dan profesional**, memastikan pengalaman pengguna yang intuitif.
+Aplikasi ini dilengkapi dengan berbagai fitur untuk memudahkan manajemen keuangan Anda:
 
-### 🚀 Fitur Utama
-
-* **Pencatatan Transaksi Cepat:** Catat pemasukan dan pengeluaran Anda dengan mudah.
-* **Ringkasan Keuangan:** Lihat total pemasukan, pengeluaran, dan saldo bersih Anda secara instan.
-* **Filter Transaksi:** Cari dan filter transaksi berdasarkan periode atau kata kunci.
-* **Akses Multi-Perangkat:** Data keuangan Anda terpusat di **Google Spreadsheet** pribadi, memungkinkan Anda mengakses catatan dari perangkat manapun.
-* **Integrasi API:** Menggunakan API kustom untuk menghubungkan aplikasi web secara aman dengan data di Spreadsheet Anda.
-* **Tampilan Responsif:** Dirancang agar terlihat bagus dan berfungsi optimal di berbagai ukuran layar.
-
----
-
-## 📸 Tampilan Aplikasi (Screenshots)
-
-Berikut adalah beberapa tampilan dari aplikasi Personal Finance Tracker:
-
-### Menambah Transaksi Baru
-Ini adalah langkah awal untuk mencatat transaksi baru, di mana Anda bisa memilih tanggal dan jenis transaksi (Pendapatan/Pengeluaran).
-
-http://googleusercontent.com/image_generation_content/1
-
- 
-
-### Daftar Transaksi
-Setelah data tersedia, Anda dapat melihat daftar semua transaksi, mencari, memfilter berdasarkan periode, serta melihat ringkasan keuangan dan opsi untuk mengunduh laporan.
-
-http://googleusercontent.com/image_generation_content/2
-
- ---
+*   **Pencatatan Transaksi Mudah**: Tambahkan pendapatan atau pengeluaran dengan cepat melalui formulir yang intuitif.
+*   **Kategori Transaksi**: Kelompokkan transaksi Anda berdasarkan kategori (Makanan, Transportasi, Gaji, Investasi, dll).
+*   **Upload & Edit Struk**: Unggah foto struk/bukti transaksi. Dilengkapi dengan fitur **editor gambar** bawaan untuk memutar (rotate) foto sebelum disimpan.
+*   **Ringkasan Keuangan**: Lihat total pendapatan, pengeluaran, dan saldo bersih secara *real-time*.
+*   **Filter & Pencarian Canggih**:
+    *   Cari transaksi berdasarkan deskripsi atau kategori.
+    *   Filter berdasarkan Tahun dan Bulan.
+    *   Filter berdasarkan Rentang Tanggal (Mulai - Sampai).
+*   **Ekspor Laporan PDF**: Unduh laporan keuangan Anda dalam format PDF dengan satu klik.
+*   **Cloud Storage**: Data tersimpan aman di Cloud menggunakan **Supabase**, sehingga dapat diakses dari perangkat mana saja.
+*   **PWA Ready**: Dapat diinstal sebagai aplikasi di perangkat mobile (Progressive Web App).
 
 ## 🛠️ Teknologi yang Digunakan
 
-Proyek ini dibangun menggunakan teknologi web dasar dan andal:
+Aplikasi ini dibangun menggunakan teknologi web modern tanpa framework yang berat (*Vanilla JS*), menjadikannya ringan dan cepat:
 
-* **HTML5:** Untuk struktur dasar konten.
-* **CSS3:** Untuk gaya, tata letak, dan memastikan tampilan yang profesional.
-* **JavaScript (ES6+):** Untuk fungsionalitas inti, logika aplikasi, dan manajemen koneksi API.
+*   **Frontend**: HTML5, CSS3, JavaScript (ES6+).
+*   **Backend & Database**: [Supabase](https://supabase.com/) (PostgreSQL & Storage).
+*   **Libraries**:
+    *   [SweetAlert2](https://sweetalert2.github.io/): Untuk notifikasi dan modal dialog yang cantik.
+    *   [html2pdf.js](https://ekoopmans.github.io/html2pdf.js/): Untuk fitur ekspor ke PDF.
+    *   [SortableJS](https://sortablejs.github.io/Sortable/): (Jika digunakan untuk drag-and-drop).
 
-### Integrasi Data
+## 📂 Struktur Proyek
 
-* **Google Spreadsheet:** Digunakan sebagai database backend yang fleksibel dan mudah diakses.
-* **Custom API:** Jembatan penghubung (misalnya: Google Apps Script atau solusi API *proxy* lainnya) yang memungkinkan aplikasi web berkomunikasi dengan data Spreadsheet.
+Berikut adalah struktur file utama dalam proyek ini:
 
----
+```
+/
+├── index.html          # Halaman utama aplikasi
+├── app.js              # Logika utama aplikasi (CRUD, Supabase, UI)
+├── style.css           # Styling dan tata letak
+├── service-worker.js   # Script untuk kemampuan PWA (Offline support)
+├── manifest.json       # Konfigurasi instalasi PWA
+├── Header.png          # Gambar header untuk README
+└── README.md           # Dokumentasi proyek ini
+```
 
-## 💻 Instalasi dan Penggunaan
+## 🚀 Cara Menjalankan
 
-### Prasyarat
-
-Sebelum menjalankan proyek, pastikan Anda memiliki:
-
-1.  Akses ke Google Spreadsheet pribadi untuk menyimpan data.
-2.  Sebuah **API Endpoint** yang telah dikonfigurasi (misalnya, menggunakan Google Apps Script) yang dapat **membaca** dan **menulis** data ke Spreadsheet tersebut.
-
-### Langkah-Langkah
-
-1.  **Clone Repositori:**
+1.  **Clone Repository** (atau download ZIP):
     ```bash
-    git clone [LINK_REPOSITORI_ANDA]
-    cd personal-finance-tracker
+    git clone https://github.com/username/catat-in.git
     ```
+2.  **Buka Aplikasi**:
+    Cukup buka file `index.html` di browser modern Anda (Chrome, Firefox, Edge).
+    > **Catatan**: Karena kebijakan keamanan browser (CORS) dan modul ES6, disarankan untuk menjalankannya menggunakan local server (seperti Live Server di VS Code) daripada membuka file secara langsung (`file:///`).
 
-2.  **Konfigurasi API:**
-    * Buka file `script.js` (atau file konfigurasi data Anda).
-    * Ganti *placeholder* `[URL_API_ANDA]` dengan URL API Endpoint yang telah Anda siapkan.
+3.  **Konfigurasi Supabase**:
+    Aplikasi ini menggunakan Supabase yang sudah terkonfigurasi di `app.js`. Jika Anda ingin menggunakan database Anda sendiri:
+    *   Buat proyek baru di [Supabase](https://supabase.com/).
+    *   Buat tabel `transaksi` dengan kolom: `id`, `tanggal`, `jenis`, `kategori`, `jumlah`, `deskripsi`, `gambar`.
+    *   Buat bucket storage bernama `bukti_transaksi`.
+    *   Update `SUPABASE_URL` dan `SUPABASE_ANON_KEY` di file `app.js`.
 
-    ```javascript
-    const API_ENDPOINT = '[URL_API_ANDA]'; 
-    // ... kode lainnya
-    ```
+## 📱 Instalasi di HP (PWA)
 
-3.  **Jalankan Aplikasi:**
-    * Cukup buka file `index.html` di *browser* Anda untuk mulai menggunakan aplikasi, atau *deploy* ke layanan *hosting* statis (seperti GitHub Pages atau Netlify).
-
----
+1.  Buka aplikasi di browser HP (Chrome untuk Android, Safari untuk iOS).
+2.  Ketuk menu browser (titik tiga atau tombol share).
+3.  Pilih **"Tambahkan ke Layar Utama"** (Add to Home Screen).
+4.  Aplikasi akan muncul seperti aplikasi native di HP Anda.
 
 ## 🤝 Kontribusi
 
-Proyek ini masih dalam pengembangan (atau terima kontribusi dari siapa saja!). Jika Anda ingin berkontribusi, silakan:
-
-1.  *Fork* repositori ini.
-2.  Buat *branch* fitur baru (`git checkout -b fitur/nama-fitur`).
-3.  *Commit* perubahan Anda (`git commit -m 'Tambahkan Fitur X'`).
-4.  *Push* ke *branch* Anda (`git push origin fitur/nama-fitur`).
-5.  Buka *Pull Request*.
+Kontribusi sangat diterima! Silakan buat *Pull Request* atau laporkan *Issue* jika Anda menemukan bug atau memiliki ide fitur baru.
 
 ---
-
-## 📝 Lisensi
-
-Proyek ini bersifat open-source dan dirilis di bawah lisensi MIT License.
-Kamu bebas memodifikasi, menyalin, dan mengembangkan proyek ini untuk keperluan pribadi.
-
-***
-
-_Dibuat dengan ❤️ oleh hsnmuha_
+Dibuat dengan ❤️ untuk manajemen keuangan yang lebih baik.
