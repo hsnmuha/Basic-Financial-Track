@@ -17,8 +17,8 @@ const MONTH_NAMES = [
     { value: '12', label: 'Desember' }
 ];
 
-let transactions = []; 
-let currentFilteredList = []; 
+let transactions = [];
+let currentFilteredList = [];
 
 // Elemen DOM
 const step1 = document.getElementById('step1');
@@ -26,7 +26,7 @@ const step2 = document.getElementById('step2');
 const financialForm = document.getElementById('financialForm');
 const categorySelect = document.getElementById('category');
 const transactionListBody = document.getElementById('transactionList');
-const filterYearSelect = document.getElementById('filterYear'); 
+const filterYearSelect = document.getElementById('filterYear');
 const filterMonthSelect = document.getElementById('filterMonth');
 const filterStartDateInput = document.getElementById('filterStartDate');
 const filterEndDateInput = document.getElementById('filterEndDate');
@@ -42,11 +42,27 @@ function formatRupiah(number) {
 
 function calculateSummaryData(listToRender) {
     let totalIncome = 0; let totalExpense = 0;
+    let incomeCash = 0; let incomeATM = 0;
+    let expenseCash = 0; let expenseATM = 0;
+
     listToRender.forEach(t => {
-        const amount = Number(t.jumlah) || 0; 
-        if (t.jenis === 'Pendapatan') { totalIncome += amount; } else { totalExpense += amount; }
+        const amount = Number(t.jumlah) || 0;
+        const isCash = (t.metode || 'Cash') === 'Cash';
+
+        if (t.jenis === 'Pendapatan') {
+            totalIncome += amount;
+            if (isCash) incomeCash += amount; else incomeATM += amount;
+        } else {
+            totalExpense += amount;
+            if (isCash) expenseCash += amount; else expenseATM += amount;
+        }
     });
-    return { totalIncome: totalIncome, totalExpense: totalExpense, netBalance: totalIncome - totalExpense };
+    return {
+        totalIncome, totalExpense, netBalance: totalIncome - totalExpense,
+        incomeCash, incomeATM, expenseCash, expenseATM,
+        balanceCash: incomeCash - expenseCash,
+        balanceATM: incomeATM - expenseATM
+    };
 }
 
 function calculateAndRenderSummary(listToRender) {
@@ -54,32 +70,62 @@ function calculateAndRenderSummary(listToRender) {
 
     document.getElementById('totalIncome').textContent = formatRupiah(summary.totalIncome);
     document.getElementById('totalExpense').textContent = formatRupiah(summary.totalExpense);
-    
+
     const netBalanceEl = document.getElementById('netBalance');
     netBalanceEl.textContent = formatRupiah(summary.netBalance);
-    // Atur warna saldo bersih
     netBalanceEl.style.color = summary.netBalance >= 0 ? '#007bff' : '#dc3545';
+
+    // Update Cash/ATM summary
+    document.getElementById('incomeCash').textContent = formatRupiah(summary.incomeCash);
+    document.getElementById('expenseCash').textContent = formatRupiah(summary.expenseCash);
+    const balCashEl = document.getElementById('balanceCash');
+    balCashEl.textContent = formatRupiah(summary.balanceCash);
+    balCashEl.style.color = summary.balanceCash >= 0 ? '#28a745' : '#dc3545';
+
+    document.getElementById('incomeATM').textContent = formatRupiah(summary.incomeATM);
+    document.getElementById('expenseATM').textContent = formatRupiah(summary.expenseATM);
+    const balATMEl = document.getElementById('balanceATM');
+    balATMEl.textContent = formatRupiah(summary.balanceATM);
+    balATMEl.style.color = summary.balanceATM >= 0 ? '#28a745' : '#dc3545';
 }
 
 // --- FUNGSI CLOUD (SUPABASE) ---
 
 async function loadTransactionsFromCloud() {
     try {
-        transactionListBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Memuat data dari Cloud...</td></tr>';
+        transactionListBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Memuat data dari Cloud...</td></tr>';
         const supabase = await ensureSupabase();
-        const { data, error } = await supabase.from('transaksi').select('*').order('tanggal', { ascending: true });
+
+        let data, error;
+        try {
+            // Try sorting by urutan first
+            const result = await supabase.from('transaksi').select('*').order('tanggal', { ascending: true }).order('urutan', { ascending: true });
+            data = result.data;
+            error = result.error;
+            if (error) throw error;
+        } catch (e) {
+            console.warn("Sorting by 'urutan' failed, falling back to date only.", e);
+            // Fallback: sort only by date
+            const result = await supabase.from('transaksi').select('*').order('tanggal', { ascending: true });
+            data = result.data;
+            error = result.error;
+        }
+
         if (error) throw error;
         const rows = Array.isArray(data) ? data : [];
         return rows.map(r => ({
             id: String(r.id ?? ''),
             tanggal: r.tanggal || '',
             jenis: r.jenis || '',
+            metode: r.metode || 'Cash',
             kategori: r.kategori || '',
             jumlah: Number(r.jumlah) || 0,
             deskripsi: r.deskripsi || '',
-            gambar: r.gambar || ''
+            gambar: r.gambar || '',
+            urutan: Number(r.urutan) || 0
         })).filter(t => t.id);
     } catch (error) {
+        console.error(error);
         Swal.fire('Gagal Memuat!', 'Terjadi masalah saat memuat data dari cloud.', 'error');
         return [];
     }
@@ -88,7 +134,40 @@ async function loadTransactionsFromCloud() {
 async function saveTransactionToCloud(newTransaction) {
     try {
         const supabase = await ensureSupabase();
-        const { error } = await supabase.from('transaksi').insert([{ tanggal: newTransaction.tanggal, jenis: newTransaction.jenis, kategori: newTransaction.kategori, jumlah: newTransaction.jumlah, deskripsi: newTransaction.deskripsi || '', gambar: newTransaction.gambar || '' }]);
+        let nextUrutan = 1;
+
+        try {
+            // Get max urutan for the date to append at the end
+            const { data: maxData } = await supabase.from('transaksi').select('urutan').eq('tanggal', newTransaction.tanggal).order('urutan', { ascending: false }).limit(1);
+            nextUrutan = (maxData && maxData.length > 0) ? (maxData[0].urutan + 1) : 1;
+        } catch (e) {
+            console.warn("Could not fetch max urutan, defaulting to 1", e);
+        }
+
+        const payload = {
+            tanggal: newTransaction.tanggal,
+            jenis: newTransaction.jenis,
+            metode: newTransaction.metode,
+            kategori: newTransaction.kategori,
+            jumlah: newTransaction.jumlah,
+            deskripsi: newTransaction.deskripsi || '',
+            gambar: newTransaction.gambar || ''
+        };
+
+        // Only add urutan if we successfully calculated it (implying column likely exists or we just try)
+        // Actually, better to try inserting with urutan, if fail, try without.
+
+        let error;
+        try {
+            const res = await supabase.from('transaksi').insert([{ ...payload, urutan: nextUrutan }]);
+            error = res.error;
+            if (error) throw error;
+        } catch (e) {
+            console.warn("Insert with urutan failed, trying without.", e);
+            const res = await supabase.from('transaksi').insert([payload]);
+            error = res.error;
+        }
+
         if (error) return { success: false, message: error.message || 'Gagal insert' };
         return { success: true };
     } catch (error) { return { success: false, message: error.toString() }; }
@@ -110,6 +189,7 @@ async function handleSubmit(e) {
     const date = document.getElementById('date').value;
     const type = document.querySelector('input[name="type"]:checked').value;
     const category = categorySelect.value;
+    const method = document.getElementById('method').value;
     const amount = parseFloat(document.getElementById('amount').value);
     const description = document.getElementById('description').value;
 
@@ -136,7 +216,7 @@ async function handleSubmit(e) {
         }
     }
 
-    const newTransaction = { tanggal: date, jenis: type, kategori: category, jumlah: amount, deskripsi: description || '', gambar: imageUrl || '' };
+    const newTransaction = { tanggal: date, jenis: type, metode: method, kategori: category, jumlah: amount, deskripsi: description || '', gambar: imageUrl || '' };
 
     const submitButton = financialForm.querySelector('button[type="submit"]');
     submitButton.textContent = 'Menyimpan...';
@@ -163,7 +243,7 @@ async function handleSubmit(e) {
 financialForm.addEventListener('submit', handleSubmit);
 
 // Logika Saat Tombol Hapus Diklik
-window.deleteTransaction = async function(id) {
+window.deleteTransaction = async function (id) {
     const transactionToDelete = transactions.find(t => t.id === id);
     if (!transactionToDelete) { Swal.fire('Gagal!', "ID transaksi tidak ditemukan di daftar.", 'error'); return; }
 
@@ -212,7 +292,7 @@ function populateMonthFilter() {
     filterMonthSelect.value = currentMonth;
 }
 
-window.filterAndRenderTransactions = function() {
+window.filterAndRenderTransactions = function () {
     const searchTerm = searchBox.value.toLowerCase().trim();
     const selectedYear = filterYearSelect.value;
     const selectedMonth = filterMonthSelect.value;
@@ -245,13 +325,24 @@ window.filterAndRenderTransactions = function() {
 }
 
 function renderTransactions(listToRender) {
-    transactionListBody.innerHTML = ''; 
-    listToRender.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal)); 
-    
+    transactionListBody.innerHTML = '';
+    // Sort by Date then by Urutan then by ID (for stability)
+    listToRender.sort((a, b) => {
+        const dateA = new Date(a.tanggal);
+        const dateB = new Date(b.tanggal);
+        if (dateA - dateB !== 0) return dateA - dateB;
+
+        const urutanDiff = (a.urutan || 0) - (b.urutan || 0);
+        if (urutanDiff !== 0) return urutanDiff;
+
+        // Fallback to ID for stable sort if urutan is same (e.g. 0)
+        return String(a.id).localeCompare(String(b.id));
+    });
+
     if (listToRender.length === 0) {
         const row = transactionListBody.insertRow();
         const cell = row.insertCell();
-        cell.colSpan = 5; 
+        cell.colSpan = 6;
         cell.style.cssText = 'border: none; padding: 0;';
         cell.innerHTML = `
             <div class="no-data-message" style="border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: 12px; text-align: center; font-weight: bold; box-sizing: border-box; width: 100%;">
@@ -261,17 +352,23 @@ function renderTransactions(listToRender) {
     } else {
         listToRender.forEach((t) => {
             const row = transactionListBody.insertRow();
+            row.dataset.id = t.id; // Store ID for drag and drop
+            row.dataset.date = t.tanggal; // Store Date for drag and drop validation
             const typeClass = t.jenis === 'Pendapatan' ? 'income' : 'expense';
 
             // Format tanggal ke DD/MM/YYYY
             const dateParts = t.tanggal.split('-');
             const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : t.tanggal;
 
-            row.insertCell().textContent = formattedDate;
+            // Add drag handle icon
+            const dateCell = row.insertCell();
+            dateCell.innerHTML = `<span style="cursor:grab;margin-right:5px;color:#888">☰</span> ${formattedDate}`;
+
             row.insertCell().innerHTML = `<span class="${typeClass}">${t.jenis}</span>`;
+            row.insertCell().textContent = t.metode || 'Cash';
             row.insertCell().textContent = t.kategori;
             row.insertCell().textContent = formatRupiah(t.jumlah);
-            
+
             const actionCell = row.insertCell();
 
             // 1. Tombol RINCIAN
@@ -296,11 +393,78 @@ function renderTransactions(listToRender) {
             actionCell.appendChild(deleteBtn);
         });
     }
-    calculateAndRenderSummary(listToRender); 
+    calculateAndRenderSummary(listToRender);
+}
+
+// --- DRAG AND DROP LOGIC ---
+let sortableInstance = null;
+
+function initSortable() {
+    if (sortableInstance) sortableInstance.destroy();
+
+    const el = document.getElementById('transactionList');
+    sortableInstance = new Sortable(el, {
+        animation: 150,
+        handle: 'span[style*="cursor:grab"]', // Drag handle
+        onEnd: async function (evt) {
+            const itemEl = evt.item;
+            const newIndex = evt.newIndex;
+            const oldIndex = evt.oldIndex;
+
+            if (newIndex === oldIndex) return;
+
+            const id = itemEl.dataset.id;
+            const date = itemEl.dataset.date;
+
+            // Get all rows to determine new order
+            const rows = Array.from(el.querySelectorAll('tr'));
+
+            // Filter rows that have the same date (we only reorder within same date usually, but here we reorder globally in the list)
+            // Ideally, we should check if the user dragged across dates, which might be confusing. 
+            // For simplicity, we will just update the 'urutan' of ALL items in the list based on their new visual order.
+            // However, to be efficient, we should only update items with the SAME DATE.
+
+            // Let's verify if the user dragged into a different date group.
+            // If the list is sorted by date, dragging an item to a position surrounded by different dates is weird.
+            // But assuming the user sorts by "Semua Bulan" or specific month, the list is by date.
+
+            // Strategy: Re-assign 'urutan' for ALL items of the SAME DATE as the moved item.
+            // 1. Identify the date of the moved item.
+            // 2. Find all items in the current list (DOM) that have that same date.
+            // 3. Update their 'urutan' based on their visual order index.
+
+            const sameDateRows = rows.filter(r => r.dataset.date === date);
+
+            // Prepare updates
+            const updates = sameDateRows.map((row, index) => ({
+                id: row.dataset.id,
+                urutan: index + 1
+            }));
+
+            // Optimistic update locally
+            updates.forEach(u => {
+                const t = transactions.find(tr => tr.id === u.id);
+                if (t) t.urutan = u.urutan;
+            });
+
+            // Send to Cloud
+            await updateOrderInCloud(updates);
+        }
+    });
+}
+
+async function updateOrderInCloud(updates) {
+    const supabase = await ensureSupabase();
+    // Batch update is not directly supported in one query easily without RPC, so we loop.
+    // For small number of items per day, this is fine.
+    for (const update of updates) {
+        await supabase.from('transaksi').update({ urutan: update.urutan }).eq('id', update.id);
+    }
+    // No need to reload, we updated locally.
 }
 
 // FUNGSI LAINNYA
-window.goToStep2 = function() {
+window.goToStep2 = function () {
     const selectedType = document.querySelector('input[name="type"]:checked');
     const dateInput = document.getElementById('date').value;
     if (!selectedType || !dateInput) {
@@ -316,32 +480,39 @@ window.goToStep2 = function() {
     step1.style.display = 'none'; step2.style.display = 'block';
 }
 
-window.goToStep1 = function() { step1.style.display = 'block'; step2.style.display = 'none'; }
+window.goToStep1 = function () { step1.style.display = 'block'; step2.style.display = 'none'; }
 
-window.editTransaction = function(id) {
+window.editTransaction = function (id) {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
     // Populate form with existing data
     document.getElementById('date').value = transaction.tanggal;
-    document.querySelector(`input[name="type"][value="${transaction.jenis}"]`).checked = true;
-    goToStep2(); // Go to step 2 to populate categories
 
-    // Wait a bit for categories to populate, then set the category
-    setTimeout(() => {
-        document.getElementById('category').value = transaction.kategori;
-        document.getElementById('amount').value = transaction.jumlah;
-        document.getElementById('description').value = transaction.deskripsi || '';
+    // Set radio button
+    const typeRadio = document.querySelector(`input[name="type"][value="${transaction.jenis}"]`);
+    if (typeRadio) typeRadio.checked = true;
 
-        // Change submit button text and add edit mode
-        const submitBtn = financialForm.querySelector('button[type="submit"]');
-        submitBtn.textContent = 'Update Transaksi';
-        submitBtn.dataset.editId = id;
+    // Populate categories (synchronous)
+    goToStep2();
 
-        // Change form submit handler for edit mode
-        financialForm.removeEventListener('submit', handleSubmit);
-        financialForm.addEventListener('submit', handleEditSubmit);
-    }, 100);
+    // Set other fields immediately
+    document.getElementById('category').value = transaction.kategori;
+    document.getElementById('method').value = transaction.metode || 'Cash';
+    document.getElementById('amount').value = transaction.jumlah;
+    document.getElementById('description').value = transaction.deskripsi || '';
+
+    // Change submit button text and add edit mode
+    const submitBtn = financialForm.querySelector('button[type="submit"]');
+    submitBtn.textContent = 'Update Transaksi';
+    submitBtn.dataset.editId = id;
+
+    // Change form submit handler for edit mode
+    financialForm.removeEventListener('submit', handleSubmit);
+    financialForm.addEventListener('submit', handleEditSubmit);
+
+    // Scroll to form to ensure user sees it
+    financialForm.scrollIntoView({ behavior: 'smooth' });
 }
 
 async function handleEditSubmit(e) {
@@ -351,6 +522,7 @@ async function handleEditSubmit(e) {
     const date = document.getElementById('date').value;
     const type = document.querySelector('input[name="type"]:checked').value;
     const category = document.getElementById('category').value;
+    const method = document.getElementById('method').value;
     const amount = parseFloat(document.getElementById('amount').value);
     const description = document.getElementById('description').value;
 
@@ -362,6 +534,7 @@ async function handleEditSubmit(e) {
     const updatedTransaction = {
         tanggal: date,
         jenis: type,
+        metode: method,
         kategori: category,
         jumlah: amount,
         deskripsi: description || ''
@@ -376,6 +549,7 @@ async function updateTransactionInCloud(id, updatedTransaction) {
         const { error } = await supabase.from('transaksi').update({
             tanggal: updatedTransaction.tanggal,
             jenis: updatedTransaction.jenis,
+            metode: updatedTransaction.metode,
             kategori: updatedTransaction.kategori,
             jumlah: updatedTransaction.jumlah,
             deskripsi: updatedTransaction.deskripsi
@@ -408,7 +582,7 @@ async function updateTransactionInCloud(id, updatedTransaction) {
     }
 }
 
-window.showDetails = function(id) {
+window.showDetails = function (id) {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
     let imgSection = transaction.gambar ? `<div style="margin-top:10px"><img src="${transaction.gambar}" alt="Struk" style="max-width:100%;height:auto;border:1px solid #ddd;border-radius:6px"/></div>` : `<div style="margin-top:10px;color:#666">Belum ada foto struk.</div>`;
@@ -417,6 +591,7 @@ window.showDetails = function(id) {
         <div style="text-align: left;">
             <strong>Tanggal:</strong> ${transaction.tanggal}<br>
             <strong>Jenis:</strong> ${transaction.jenis}<br>
+            <strong>Metode:</strong> ${transaction.metode || 'Cash'}<br>
             <strong>Kategori:</strong> ${transaction.kategori}<br>
             <strong>Jumlah:</strong> ${formatRupiah(transaction.jumlah)}<br>
             <strong>Deskripsi:</strong> ${transaction.deskripsi || '(Tidak ada)'}
@@ -511,14 +686,15 @@ window.showDetails = function(id) {
 document.addEventListener('DOMContentLoaded', async () => {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('date').value = today;
-    
+
     // Memuat data pertama kali dari Cloud
-    transactions = await loadTransactionsFromCloud(); 
-    
+    transactions = await loadTransactionsFromCloud();
+
     populateYearFilter();
     populateMonthFilter();
-    
-    filterAndRenderTransactions(); 
+
+    filterAndRenderTransactions();
+    initSortable(); // Initialize SortableJS
 
     // Wire Download PDF button (if present)
     if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', downloadPdf);
@@ -571,6 +747,7 @@ async function downloadPdf() {
         <tr>
             <th style="border:1px solid #ddd;padding:6px;text-align:left">Tanggal</th>
             <th style="border:1px solid #ddd;padding:6px;text-align:left">Jenis</th>
+            <th style="border:1px solid #ddd;padding:6px;text-align:left">Metode</th>
             <th style="border:1px solid #ddd;padding:6px;text-align:left">Kategori</th>
             <th style="border:1px solid #ddd;padding:6px;text-align:right">Jumlah (Rp)</th>
             <th style="border:1px solid #ddd;padding:6px;text-align:left">Deskripsi</th>
@@ -587,6 +764,7 @@ async function downloadPdf() {
         tr.innerHTML = `
             <td style="border:1px solid #ddd;padding:6px">${t.tanggal || ''}</td>
             <td style="border:1px solid #ddd;padding:6px">${t.jenis || ''}</td>
+            <td style="border:1px solid #ddd;padding:6px">${t.metode || 'Cash'}</td>
             <td style="border:1px solid #ddd;padding:6px">${t.kategori || ''}</td>
             <td style="border:1px solid #ddd;padding:6px;${jumlahStyle}">${formatRupiah(t.jumlah || 0)}</td>
             <td style="border:1px solid #ddd;padding:6px">${t.deskripsi || ''}</td>
@@ -599,7 +777,7 @@ async function downloadPdf() {
     // Generate filename berdasarkan filter periode yang aktif
     const selectedYear = filterYearSelect.value;
     const selectedMonth = filterMonthSelect.value;
-    
+
     let filename = 'Rekap_Keuangan';
     if (selectedMonth !== 'all') {
         const monthLabel = MONTH_NAMES.find(m => m.value === selectedMonth)?.label || selectedMonth;
@@ -609,16 +787,16 @@ async function downloadPdf() {
     } else {
         // Jika tidak ada filter (semua data), gunakan tanggal sekarang
         const now = new Date();
-        filename += `_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+        filename += `_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
     filename += '.pdf';
 
     const opt = {
-        margin:       10,
-        filename:     filename,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     try {
